@@ -1268,3 +1268,8 @@ Outputs:
         - .pem ec2-user@
 
         - !GetAtt PrivateInstance.PrivateIp
+
+
+#This example is created by Mohammad Abu Mattar 0 Jan, 2023
+#The article is available at https://mkabumattar.com/blog/post/how-to-setup-bastion-host-on-aws-using-cloudformation-template
+#His personal blog is available at https://mkabumattar.com
