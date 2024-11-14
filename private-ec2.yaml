@@ -1,8 +1,36 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description:
   "Bastion EC2 Instance that have private access on port 22 through bastion host"
+
+Parameters:
+  VPCId:
+    Type: String
+  PrivateSubnetId:
+    Type: String
+  PublicEC2:
+    Type: String
+
 Resources:
-  DummyServer:
+  PrivateEC2:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ""
+      AvailabilityZone: us-east-1b
+      ImageId: ami-063d43db0594b521b
+      InstanceType: t2.micro
+      SubnetId: !Ref PrivateSubnetId
+      SecurityGroups: !Ref SSHSecurityGroup
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH traffic from public EC2
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: !GetAtt PublicEC2.PublicIP
+
+Outputs:
+  PrivateEC2InstanceId:
+    Value: !Ref PrivateEC2
