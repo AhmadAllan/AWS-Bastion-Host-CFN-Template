@@ -116,7 +116,13 @@ Resources:
 Outputs:
   VpcId:
     Value: !Ref myVpc
+    Export:
+      Name: VpcId
   PublicSubnetId:
     Value: !Ref PublicSubnet
+    Export:
+      Name: PublicSubnet
   PrivateSubnetId:
     Value: !Ref PrivateSubnet
+    Export:
+      Name: PrivateSubnet

@@ -1,36 +1,32 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Master Template"
 Resources:
-  VPCStack:
-    Type: AWS::CloudFormation::Stack
+  PublicEC2KeyPair:
+    Type: AWS::EC2::KeyPair
     Properties:
-      StackName: my-vpc-stack
-      TemplateURL: 'https://bastion-cfn-tamplate.s3.us-east-1.amazonaws.com/vpc-tamplate.yaml' # This should be the S3 URL for the VPC template
+      KeyName: PublicEC2Key
+      KeyType: rsa
+      Tags:
+        - Key: Name
+          Value: PublicEC2Key
 
-  PublicEC2Stack:
-    Type: AWS::CloudFormation::Stack
+  PrivateEC2KeyPair:
+    Type: AWS::EC2::KeyPair
     Properties:
-      StackName: my-public-ec2-stack
-      TemplateURL: 'https://bastion-cfn-tamplate.s3.us-east-1.amazonaws.com/public-ec2.yaml' # S3 URL for the public EC2 template
-      Parameters:
-        VPCId: !GetAtt VPCStack.Outputs.VPCId
-        PublicSubnetId: !GetAtt VPCStack.Outputs.PublicSubnetId
-
-  PrivateEC2Stack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      StackName: my-private-ec2-stack
-      TemplateURL: 'https://bastion-cfn-tamplate.s3.us-east-1.amazonaws.com/private-ec2.yaml' # S3 URL for the private EC2 template
-      Parameters:
-        VPCId: !GetAtt VPCStack.Outputs.VPCId
-        PrivateSubnetId: !GetAtt VPCStack.Outputs.PrivateSubnetId
-        BastionPublicIP: !GetAtt PublicEC2Stack.Outputs.PublicIP
+      KeyName: PrivateEC2Key
+      KeyType: rsa
+      Tags:
+        - Key: Name
+          Value: PrivateEC2Key
 
 Outputs:
-  VPCId:
-    Value: !GetAtt VPCStack.Outputs.VPCId
-    Description: VPC ID
+  PublicEC2KeyPairName:
+    Value: !Ref PublicEC2KeyPair
+    Export:
+      Name: PublicEC2KeyPair
 
-  PublicIP:
-    Value: !GetAtt PublicEC2Stack.Outputs.PublicIP
-    Description: Public IP of the public EC2 instance
+  PrivateEC2KeyPairName:
+    Value: !Ref PrivateEC2KeyPair
+    Export:
+      Name: PrivateEC2KeyPair
+
