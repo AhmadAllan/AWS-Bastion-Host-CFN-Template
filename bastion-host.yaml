@@ -1,0 +1,1270 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >-
+
+  This template creates a VPC with 2 subnets, 1 public and 1 private. It also
+
+  Internet Gateway, NAT Gateway, Route Tables, Security Groups and EC2 Instances
+
+  for Bastion Host and Private Instance.
+
+
+Parameters:
+
+  EnvironmentName:
+
+    Description: >-
+
+      An environment name that will be prefixed to resource names
+
+    Type: String
+
+    AllowedValues:
+
+      - dev
+
+      - test
+
+      - prod
+
+    Default: dev
+
+  VPCName:
+
+    Description: >-
+
+      The name of the VPC. This name is used as a tag value for the VPC and
+
+      subnets.
+
+    Type: String
+
+    Default: bastion-host-vpc
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      VPC name can include numbers, lowercase letters, uppercase letters, and
+
+      hyphens (-). It cannot start or end with a hyphen (-).
+
+  VPCCIDR:
+
+    Description: >-
+
+      The CIDR block for the VPC. This should be a valid private (RFC 1918)
+
+      CIDR range.
+
+    Type: String
+
+    Default: 10.0.0.0/16
+
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-9]|3[0-2]))$
+
+    ConstraintDescription: >-
+
+      CIDR block parameter must be in the form x.x.x.x/16-32, where x is a
+
+      number from 0-255, and /16-32 is a valid CIDR range.
+
+  PublicSubnetName:
+
+    Description: >-
+
+      The name of the public subnet. This name is used as a tag value for the
+
+      subnet.
+
+    Type: String
+
+    Default: bastion-host-public-subnet
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Subnet name can include numbers, lowercase letters, uppercase letters, and
+
+      hyphens (-). It cannot start or end with a hyphen (-).
+
+  PublicSubnetCIDR:
+
+    Description: >-
+
+      The CIDR block for the public subnet. This should be a valid private (RFC
+
+      1918) CIDR range that is /24 or larger.
+
+    Type: String
+
+    Default: 10.0.0.0/24
+
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(2[4-9]|3[0-2]))$
+
+    ConstraintDescription: >-
+
+      CIDR block parameter must be in the form x.x.x.x/24-32, where x is a
+
+      number from 0-255, and /24-32 is a valid CIDR range.
+
+  PrivateSubnetName:
+
+    Description: >-
+
+      The name of the private subnet. This name is used as a tag value for the
+
+      subnet.
+
+    Type: String
+
+    Default: bastion-host-private-subnet
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Subnet name can include numbers, lowercase letters, uppercase letters, and
+
+      hyphens (-). It cannot start or end with a hyphen (-).
+
+  PrivateSubnetCIDR:
+
+    Description: >-
+
+      The CIDR block for the private subnet. This should be a valid private (RFC
+
+      1918) CIDR range that is /24 or larger.
+
+    Type: String
+
+    Default: 10.0.16.0/24
+
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(2[4-9]|3[0-2]))$
+
+    ConstraintDescription: >-
+
+      CIDR block parameter must be in the form x.x.x.x/24-32, where x is a
+
+      number from 0-255, and /24-32 is a valid CIDR range.
+
+  InternetGatewayName:
+
+    Description: >-
+
+      The name of the Internet Gateway. This name is used as a tag value for the
+
+      Internet Gateway.
+
+    Type: String
+
+    Default: bastion-host-igw
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Internet Gateway name can include numbers, lowercase letters, uppercase
+
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+
+  NATGatewayName:
+
+    Description: >-
+
+      The name of the NAT Gateway. This name is used as a tag value for the NAT
+
+      Gateway.
+
+    Type: String
+
+    Default: bastion-host-ngw
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      NAT Gateway name can include numbers, lowercase letters, uppercase
+
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+
+  PublicRouteTableName:
+
+    Description: >-
+
+      The name of the public route table. This name is used as a tag value for
+
+      the route table.
+
+    Type: String
+
+    Default: bastion-host-public-route-table
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Route table name can include numbers, lowercase letters, uppercase
+
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+
+  PrivateRouteTableName:
+
+    Description: >-
+
+      The name of the private route table. This name is used as a tag value for
+
+      the route table.
+
+    Type: String
+
+    Default: bastion-host-private-route-table
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Route table name can include numbers, lowercase letters, uppercase
+
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+
+  BastionHostName:
+
+    Description: >-
+
+      The name of the Bastion Host instance. This name is used as a tag value
+
+      for the instance.
+
+    Type: String
+
+    Default: bastion-host-instance
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+  BastionHostKeyPair:
+
+    Description: >-
+
+      The name of an existing EC2 KeyPair to enable SSH access to the Bastion
+
+      Host.
+
+    Type: AWS::EC2::KeyPair::KeyName
+
+  BastionHostType:
+
+    Description: >-
+
+      The instance type to use for the Bastion Host.
+
+    Type: String
+
+    AllowedValues:
+
+      - t2.nano
+
+      - t2.micro
+
+      - t2.small
+
+      - t2.medium
+
+      - t2.large
+
+      - t2.xlarge
+
+      - t2.2xlarge
+
+      - t3.nano
+
+      - t3.micro
+
+      - t3.small
+
+      - t3.medium
+
+      - t3.large
+
+      - t3.xlarge
+
+      - t3.2xlarge
+
+      - m1.small
+
+      - m1.medium
+
+      - m1.large
+
+      - m1.xlarge
+
+      - m2.xlarge
+
+      - m2.2xlarge
+
+      - m2.4xlarge
+
+      - m3.medium
+
+      - m3.large
+
+      - m3.xlarge
+
+      - m3.2xlarge
+
+      - m4.large
+
+      - m4.xlarge
+
+      - m4.2xlarge
+
+      - m4.4xlarge
+
+      - m4.10xlarge
+
+      - m4.16xlarge
+
+      - m5.large
+
+      - m5.xlarge
+
+      - m5.2xlarge
+
+      - m5.4xlarge
+
+      - m5.12xlarge
+
+      - m5.24xlarge
+
+      - m5d.large
+
+      - m5d.xlarge
+
+      - m5d.2xlarge
+
+      - m5d.4xlarge
+
+      - m5d.12xlarge
+
+      - m5d.24xlarge
+
+      - c1.medium
+
+      - c1.xlarge
+
+      - c3.large
+
+      - c3.xlarge
+
+      - c3.2xlarge
+
+      - c3.4xlarge
+
+      - c3.8xlarge
+
+      - c4.large
+
+      - c4.xlarge
+
+      - c4.2xlarge
+
+      - c4.4xlarge
+
+      - c4.8xlarge
+
+      - c5.large
+
+      - c5.xlarge
+
+      - c5.2xlarge
+
+      - c5.4xlarge
+
+      - c5.9xlarge
+
+    Default: t2.micro
+
+    ConstraintDescription: >-
+
+      Must be a valid EC2 instance type.
+
+  BastionHostAMI:
+
+    Description: >-
+
+      The ID of the Amazon Machine Image (AMI) that you want to use to launch
+
+      the Bastion Host instance.
+
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  BastionHostSecurityGroupName:
+
+    Description: >-
+
+      The name of the security group to assign to the Bastion Host instance.
+
+    Type: String
+
+    Default: bastion-host-security-group
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Security group name can include numbers, lowercase letters, uppercase
+
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+
+  BastionHostSecurityGroupDescription:
+
+    Description: >-
+
+      The description of the security group to assign to the Bastion Host
+
+      instance.
+
+    Type: String
+
+    Default: Bastion Host security group
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9\s]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Security group description can include numbers, lowercase letters,
+
+      uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+
+      (-).
+
+  PrivateInstanceName:
+
+    Description: >-
+
+      The name of the private instance. This name is used as a tag value for the
+
+      instance.
+
+    Type: String
+
+    Default: bastion-host-private-instance
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Instance name can include numbers, lowercase letters, uppercase letters,
+
+      and hyphens (-). It cannot start or end with a hyphen (-).
+
+  PrivateInstanceKeyPair:
+
+    Description: >-
+
+      The name of the Amazon EC2 key pair that you want to use to connect to the
+
+      private instance.
+
+    Type: AWS::EC2::KeyPair::KeyName
+
+    ConstraintDescription: >-
+
+      Must be the name of an existing Amazon EC2 key pair.
+
+  PrivateInstanceType:
+
+    Description: >-
+
+      The instance type to use for the private instance.
+
+    Type: String
+
+    AllowedValues:
+
+      - t2.nano
+
+      - t2.micro
+
+      - t2.small
+
+      - t2.medium
+
+      - t2.large
+
+      - t2.xlarge
+
+      - t2.2xlarge
+
+      - t3.nano
+
+      - t3.micro
+
+      - t3.small
+
+      - t3.medium
+
+      - t3.large
+
+      - t3.xlarge
+
+      - t3.2xlarge
+
+      - m1.small
+
+      - m1.medium
+
+      - m1.large
+
+      - m1.xlarge
+
+      - m2.xlarge
+
+      - m2.2xlarge
+
+      - m2.4xlarge
+
+      - m3.medium
+
+      - m3.large
+
+      - m3.xlarge
+
+      - m3.2xlarge
+
+      - m4.large
+
+      - m4.xlarge
+
+      - m4.2xlarge
+
+      - m4.4xlarge
+
+      - m4.10xlarge
+
+      - m4.16xlarge
+
+      - m5.large
+
+      - m5.xlarge
+
+      - m5.2xlarge
+
+      - m5.4xlarge
+
+      - m5.12xlarge
+
+      - m5.24xlarge
+
+      - m5d.large
+
+      - m5d.xlarge
+
+      - m5d.2xlarge
+
+      - m5d.4xlarge
+
+      - m5d.12xlarge
+
+      - m5d.24xlarge
+
+      - c1.medium
+
+      - c1.xlarge
+
+      - c3.large
+
+      - c3.xlarge
+
+      - c3.2xlarge
+
+      - c3.4xlarge
+
+      - c3.8xlarge
+
+      - c4.large
+
+      - c4.xlarge
+
+      - c4.2xlarge
+
+      - c4.4xlarge
+
+      - c4.8xlarge
+
+      - c5.large
+
+      - c5.xlarge
+
+      - c5.2xlarge
+
+      - c5.4xlarge
+
+      - c5.9xlarge
+
+    Default: t2.micro
+
+    ConstraintDescription: >-
+
+      Must be a valid EC2 instance type.
+
+  PrivateInstanceAMI:
+
+    Description: >-
+
+      The ID of the Amazon Machine Image (AMI) that you want to use to launch
+
+      the private instance.
+
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  PrivateInstanceSecurityGroupName:
+
+    Description: >-
+
+      The name of the security group to assign to the private instance.
+
+    Type: String
+
+    Default: bastion-host-private-instance-security-group
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Security group name can include numbers, lowercase letters, uppercase
+
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+
+  PrivateInstanceSecurityGroupDescription:
+
+    Description: >-
+
+      The description of the security group to assign to the private instance.
+
+    Type: String
+
+    Default: Bastion Host private instance security group
+
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9\s]*[a-zA-Z0-9]$
+
+    ConstraintDescription: >-
+
+      Security group description can include numbers, lowercase letters,
+
+      uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+
+      (-).
+
+
+Metadata:
+
+  Author: Mohammad Abu Mattar
+
+  Version: 1.0
+
+  AWS::CloudFormation::Interface:
+
+    ParameterGroups:
+
+      - Label:
+
+          default: Environment
+
+        Parameters:
+
+          - EnvironmentName
+
+      - Label:
+
+          default: Natwork Configuration
+
+        Parameters:
+
+          - VPCName
+
+          - VPCCIDR
+
+          - PublicSubnetName
+
+          - PublicSubnetCIDR
+
+          - PrivateSubnetName
+
+          - PrivateSubnetCIDR
+
+          - InternetGatewayName
+
+          - NATGatewayName
+
+          - PublicRouteTableName
+
+          - PrivateRouteTableName
+
+      - Label:
+
+          default: Bastion Host Configuration
+
+        Parameters:
+
+          - BastionHostName
+
+          - BastionHostKeyPair
+
+          - BastionHostType
+
+          - BastionHostAMI
+
+          - BastionHostSecurityGroupName
+
+          - BastionHostSecurityGroupDescription
+
+      - Label:
+
+          default: Private Instance Configuration
+
+        Parameters:
+
+          - PrivateInstanceName
+
+          - PrivateInstanceKeyPair
+
+          - PrivateInstanceType
+
+          - PrivateInstanceAMI
+
+          - PrivateInstanceSecurityGroupName
+
+          - PrivateInstanceSecurityGroupDescription
+
+
+    ParameterLabels:
+
+      EnvironmentName:
+
+        default: Environment Name
+
+      VPCName:
+
+        default: VPC Name
+
+      VPCCIDR:
+
+        default: VPC CIDR
+
+      PublicSubnetName:
+
+        default: Public Subnet Name
+
+      PublicSubnetCIDR:
+
+        default: Public Subnet CIDR
+
+      PrivateSubnetName:
+
+        default: Private Subnet Name
+
+      PrivateSubnetCIDR:
+
+        default: Private Subnet CIDR
+
+      InternetGatewayName:
+
+        default: Internet Gateway Name
+
+      NATGatewayName:
+
+        default: NAT Gateway Name
+
+      PublicRouteTableName:
+
+        default: Public Route Table Name
+
+      PrivateRouteTableName:
+
+        default: Private Route Table Name
+
+      BastionHostName:
+
+        default: Bastion Host Name
+
+      BastionHostKeyPair:
+
+        default: Bastion Host Key Pair
+
+      BastionHostType:
+
+        default: Bastion Host Type
+
+      BastionHostAMI:
+
+        default: Bastion Host AMI
+
+      BastionHostSecurityGroupName:
+
+        default: Bastion Host Security Group Name
+
+      BastionHostSecurityGroupDescription:
+
+        default: Bastion Host Security Group Description
+
+      PrivateInstanceName:
+
+        default: Private Instance Name
+
+      PrivateInstanceKeyPair:
+
+        default: Private Instance Key Pair
+
+      PrivateInstanceType:
+
+        default: Private Instance Type
+
+      PrivateInstanceAMI:
+
+        default: Private Instance AMI
+
+      PrivateInstanceSecurityGroupName:
+
+        default: Private Instance Security Group Name
+
+      PrivateInstanceSecurityGroupDescription:
+
+        default: Private Instance Security Group Description
+
+
+Resources:
+
+  VPC:
+
+    Type: AWS::EC2::VPC
+
+    Properties:
+
+      CidrBlock: !Ref VPCCIDR
+
+      EnableDnsSupport: true
+
+      EnableDnsHostnames: true
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref VPCName
+
+
+  PublicSubnet:
+
+    Type: AWS::EC2::Subnet
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      VpcId: !Ref VPC
+
+      CidrBlock: !Ref PublicSubnetCIDR
+
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref PublicSubnetName
+
+  PriveSubnet:
+
+    Type: AWS::EC2::Subnet
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      VpcId: !Ref VPC
+
+      CidrBlock: !Ref PrivateSubnetCIDR
+
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref PrivateSubnetName
+
+
+  IGW:
+
+    Type: AWS::EC2::InternetGateway
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref InternetGatewayName
+
+  IGWAttachment:
+
+    Type: AWS::EC2::VPCGatewayAttachment
+
+    DependsOn:
+
+      - VPC
+
+      - IGW
+
+    Properties:
+
+      VpcId: !Ref VPC
+
+      InternetGatewayId: !Ref IGW
+
+
+  NATGatewayEIP:
+
+    Type: AWS::EC2::EIP
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      Domain: vpc
+
+  NATGateway:
+
+    Type: AWS::EC2::NatGateway
+
+    DependsOn:
+
+      - VPC
+
+      - PublicSubnet
+
+      - NATGatewayEIP
+
+    Properties:
+
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+
+      SubnetId: !Ref PublicSubnet
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref NATGatewayName
+
+
+  PublicRouteTable:
+
+    Type: AWS::EC2::RouteTable
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      VpcId: !Ref VPC
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref PublicRouteTableName
+
+  PrivateRouteTable:
+
+    Type: AWS::EC2::RouteTable
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      VpcId: !Ref VPC
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref PrivateRouteTableName
+
+
+  PublicRoute:
+
+    Type: AWS::EC2::Route
+
+    DependsOn:
+
+      - PublicRouteTable
+
+      - IGW
+
+    Properties:
+
+      RouteTableId: !Ref PublicRouteTable
+
+      DestinationCidrBlock: 0.0.0.0/0
+
+      GatewayId: !Ref IGW
+
+  PrivateRoute:
+
+    Type: AWS::EC2::Route
+
+    DependsOn:
+
+      - PrivateRouteTable
+
+      - NATGateway
+
+    Properties:
+
+      RouteTableId: !Ref PrivateRouteTable
+
+      DestinationCidrBlock: 0.0.0.0/0
+
+      NatGatewayId: !Ref NATGateway
+
+
+  PublicSubnetRouteTableAssociation:
+
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+    DependsOn:
+
+      - PublicSubnet
+
+      - PublicRouteTable
+
+    Properties:
+
+      SubnetId: !Ref PublicSubnet
+
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnetRouteTableAssociation:
+
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+    DependsOn:
+
+      - PriveSubnet
+
+      - PrivateRouteTable
+
+    Properties:
+
+      SubnetId: !Ref PriveSubnet
+
+      RouteTableId: !Ref PrivateRouteTable
+
+
+  BastionHostSecurityGroup:
+
+    Type: AWS::EC2::SecurityGroup
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      GroupDescription: !Ref BastionHostSecurityGroupDescription
+
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+
+        - IpProtocol: tcp
+
+          FromPort: 22
+
+          ToPort: 22
+
+          CidrIp: 0.0.0.0/0
+
+      SecurityGroupEgress:
+
+        - IpProtocol: tcp
+
+          FromPort: 0
+
+          ToPort: 65535
+
+          CidrIp: 0.0.0.0/0
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref BastionHostSecurityGroupName
+
+  PrivateInstanceSecurityGroup:
+
+    Type: AWS::EC2::SecurityGroup
+
+    DependsOn:
+
+      - VPC
+
+    Properties:
+
+      GroupDescription: !Ref PrivateInstanceSecurityGroupDescription
+
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+
+        - IpProtocol: tcp
+
+          FromPort: 22
+
+          ToPort: 22
+
+          SourceSecurityGroupId: !Ref BastionHostSecurityGroup
+
+      SecurityGroupEgress:
+
+        - IpProtocol: tcp
+
+          FromPort: 0
+
+          ToPort: 65535
+
+          CidrIp: 0.0.0.0/0
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref PrivateInstanceSecurityGroupName
+
+
+  BastionHost:
+
+    Type: AWS::EC2::Instance
+
+    DependsOn:
+
+      - PublicSubnet
+
+      - BastionHostSecurityGroup
+
+    Properties:
+
+      ImageId: !Ref BastionHostAMI
+
+      InstanceType: !Ref BastionHostType
+
+      KeyName: !Ref BastionHostKeyPair
+
+      NetworkInterfaces:
+
+        - AssociatePublicIpAddress: true
+
+          DeviceIndex: 0
+
+          GroupSet:
+
+            - !Ref BastionHostSecurityGroup
+
+          SubnetId: !Ref PublicSubnet
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref BastionHostName
+
+  PrivateInstance:
+
+    Type: AWS::EC2::Instance
+
+    DependsOn:
+
+      - PriveSubnet
+
+      - PrivateInstanceSecurityGroup
+
+    Properties:
+
+      ImageId: !Ref PrivateInstanceAMI
+
+      InstanceType: !Ref PrivateInstanceType
+
+      KeyName: !Ref PrivateInstanceKeyPair
+
+      NetworkInterfaces:
+
+        - AssociatePublicIpAddress: false
+
+          DeviceIndex: 0
+
+          GroupSet:
+
+            - !Ref PrivateInstanceSecurityGroup
+
+          SubnetId: !Ref PriveSubnet
+
+      Tags:
+
+        - Key: Name
+
+          Value: !Ref PrivateInstanceName
+
+
+Outputs:
+
+  BastionHostSSH:
+
+    Description: SSH command to connect to the bastion host
+
+    Value: !Join
+
+      - ''
+
+      - - ssh -i ~/.ssh/
+
+        - !Ref BastionHostKeyPair
+
+        - .pem ec2-user@
+
+        - !GetAtt BastionHost.PublicIp
+
+  PrivateInstanceSSH:
+
+    Description: SSH command to connect to the private instance
+
+    Value: !Join
+
+      - ''
+
+      - - ssh -i ~/.ssh/
+
+        - !Ref PrivateInstanceKeyPair
+
+        - .pem ec2-user@
+
+        - !GetAtt PrivateInstance.PrivateIp

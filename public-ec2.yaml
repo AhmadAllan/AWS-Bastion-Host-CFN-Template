@@ -24,7 +24,7 @@ Conditions:
   UseSSHKey: !Equals [!Ref UseKeyPair, 'true']
 
 Resources:
-  WebServerSecurityGroup:
+  PublicEC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable HTTP and SSH access
@@ -39,7 +39,7 @@ Resources:
           ToPort: 22
           CidrIp: 0.0.0.0/0
 
-  CombinedWebServerRole:
+  PublicEC2Role:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -60,22 +60,22 @@ Resources:
                 Action: ssm:StartSession
                 Resource: 'arn:aws:ec2:us-east-1:284678542894:instance/i-038d6bb8e10480e16'
 
-  WebServerInstanceProfile:
+  PublicEC2Profile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref CombinedWebServerRole
+        - !Ref PublicEC2Role
 
-  WebServerInstance:
+  PublicEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: ami-063d43db0594b521b
       InstanceType: t2.micro
       SubnetId: !Ref PublicSubnetId
       SecurityGroupIds:
-        - !Ref WebServerSecurityGroup
+        - !Ref PublicEC2SecurityGroup
       KeyName: !If [UseSSHKey, !Ref KeyName, !Ref 'AWS::NoValue']
-      IamInstanceProfile: !Ref WebServerInstanceProfile
+      IamInstanceProfile: !Ref PublicEC2Profile
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -91,15 +91,15 @@ Resources:
           echo "$PASSWORD" | passwd ec2-user --stdin
           sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-          
+
           # If not using key pair, disable key authentication
           if [ "${UseKeyPair}" = "false" ]; then
             sed -i 's/PubkeyAuthentication yes/PubkeyAuthentication no/' /etc/ssh/sshd_config
           fi
-          
+
           systemctl restart sshd
 
 Outputs:
   PublicIP:
     Description: Public IP address of the web server
-    Value: !GetAtt WebServerInstance.PublicIp
+    Value: !GetAtt PublicEC2Instance.PublicIp

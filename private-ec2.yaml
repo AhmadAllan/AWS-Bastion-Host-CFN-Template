@@ -47,6 +47,7 @@ Resources:
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
 
   PrivateInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -74,19 +75,19 @@ Resources:
           yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
-          
+
           # Set up password authentication
           PASSWORD=$(aws ssm get-parameter --name ${PasswordParameter} --with-decryption --region ${AWS::Region} --query Parameter.Value --output text)
           useradd ec2-user
           echo "$PASSWORD" | passwd ec2-user --stdin
           sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-          
+
           # If not using key pair, disable key authentication
           if [ "${UseKeyPair}" = "false" ]; then
             sed -i 's/PubkeyAuthentication yes/PubkeyAuthentication no/' /etc/ssh/sshd_config
           fi
-          
+
           systemctl restart sshd
 
 Outputs:
