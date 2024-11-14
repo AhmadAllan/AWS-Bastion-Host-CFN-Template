@@ -1,128 +1,76 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description:
-  "VPC Template with two subnets one private and one public"
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC with public and private subnets'
+
 Resources:
-  myVpc:
+  VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: "192.168.0.0/16"
-      EnableDnsSupport: true
+      CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
-      InstanceTenancy: default
+      EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref "AWS::StackName", "-myVpc"]]
+          Value: MyVPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
 
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
       AvailabilityZone: us-east-1a
-      VpcId: !Ref myVpc
-      CidrBlock: "192.168.0.0/24"
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: PublicSubnet
+          Value: Public Subnet
 
   PrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
       AvailabilityZone: us-east-1b
-      VpcId: !Ref myVpc
-      CidrBlock: "192.168.1.0/24"
       Tags:
         - Key: Name
-          Value: PrivateSubnet
-
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-    DependsOn: myVpc
-    Properties:
-      Tags:
-        - Key: Name
-          Value: !Join ['', [!Ref "AWS::StackName", "-IGW"]]
-
-  InternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref myVpc
-      InternetGatewayId: !Ref InternetGateway
-
-  ElasticIp:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: !Join ['', [!Ref "AWS::StackName", "-EIP"]]
-
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId:
-        Fn::GetAtt: [ElasticIp, AllocationId]
-      SubnetId: !Ref PrivateSubnet
-      Tags:
-        - Key: Name
-          Value: !Join ['', [!Ref "AWS::StackName", "-NatGateway"]]
+          Value: Private Subnet
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref myVpc
+      VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref "AWS::StackName", "-RouteTable"]]
+          Value: Public Route Table
 
   PublicRoute:
     Type: AWS::EC2::Route
-    DependsOn:
-      - InternetGateway
-      - InternetGatewayAttachment
+    DependsOn: AttachGateway
     Properties:
-      DestinationCidrBlock: "0.0.0.0/0"
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-      RouteTableId: !Ref PublicRouteTable
 
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref myVpc
-      Tags:
-        - Key: Name
-          Value: !Join ['', [!Ref "AWS::StackName", "-PrivateRouteTable"]]
-
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    DependsOn:
-      - NatGateway
-    Properties:
-      DestinationCidrBlock: "0.0.0.0/0"
-      NatGatewayId: !Ref NatGateway
-      RouteTableId: !Ref PrivateRouteTable
-
-  PublicRouteTableAssociation:
+  PublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet
-
-  PrivateRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PublicRouteTable
 
 Outputs:
   VpcId:
-    Value: !Ref myVpc
-    Export:
-      Name: VpcId
+    Description: VPC ID
+    Value: !Ref VPC
   PublicSubnetId:
+    Description: Public Subnet ID
     Value: !Ref PublicSubnet
-    Export:
-      Name: PublicSubnet
   PrivateSubnetId:
+    Description: Private Subnet ID
     Value: !Ref PrivateSubnet
-    Export:
-      Name: PrivateSubnet

@@ -1,28 +1,95 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description:
-  "Bastion EC2 Instance that have private access on port 22 through bastion host"
-Resources:
-  PrivateEC2:
-    Type: AWS::EC2::Instance
-    Properties:
-      AvailabilityZone: us-east-1b
-      ImageId: ami-0a3c3a20c09d6f377
-      SubnetId: !ImportValue PrivateSubnet
-      InstanceType: t2.micro
-      KeyName: !ImportValue PrivateEC2KeyPair
-      SecurityGroupIds:
-        - !Ref SSHSecurityGroup
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Private EC2 instance'
 
-  SSHSecurityGroup:
+Parameters:
+  VpcId:
+    Type: String
+    Description: VPC ID
+  PrivateSubnetId:
+    Type: String
+    Description: Private Subnet ID
+  UseKeyPair:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Description: Whether to use SSH key pair
+  KeyName:
+    Type: String
+    Description: Name of the SSH key pair
+    Default: ''
+  PasswordParameter:
+    Type: String
+    Description: SSM Parameter name for instance password
+
+Conditions:
+  UseSSHKey: !Equals [!Ref UseKeyPair, 'true']
+
+Resources:
+  PrivateInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow SSH traffic from public EC2
-      VpcId: !ImportValue VpcId
+      GroupDescription: Enable SSH access from public subnet
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: "22"
-          ToPort: "22"
-          CidrIp: !ImportValue PublicIP
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
 
+  PrivateInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
+  PrivateInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref PrivateInstanceRole
 
+  PrivateInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-063d43db0594b521b
+      InstanceType: t2.micro
+      SubnetId: !Ref PrivateSubnetId
+      SecurityGroupIds:
+        - !Ref PrivateInstanceSecurityGroup
+      KeyName: !If [UseSSHKey, !Ref KeyName, !Ref 'AWS::NoValue']
+      IamInstanceProfile: !Ref PrivateInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y jq aws-cli
+
+          # Install and configure the SSM Agent
+          yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          systemctl enable amazon-ssm-agent
+          systemctl start amazon-ssm-agent
+          
+          # Set up password authentication
+          PASSWORD=$(aws ssm get-parameter --name ${PasswordParameter} --with-decryption --region ${AWS::Region} --query Parameter.Value --output text)
+          useradd ec2-user
+          echo "$PASSWORD" | passwd ec2-user --stdin
+          sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+          
+          # If not using key pair, disable key authentication
+          if [ "${UseKeyPair}" = "false" ]; then
+            sed -i 's/PubkeyAuthentication yes/PubkeyAuthentication no/' /etc/ssh/sshd_config
+          fi
+          
+          systemctl restart sshd
+
+Outputs:
+  PrivateIP:
+    Description: Private IP address of the instance
+    Value: !GetAtt PrivateInstance.PrivateIp
