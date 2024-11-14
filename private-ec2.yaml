@@ -1,0 +1,8 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:
+  "Bastion EC2 Instance that have private access on port 22 through bastion host"
+Resources:
+  DummyServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ""
