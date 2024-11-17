@@ -1,4 +1,4 @@
-# AWS CloudFormation Nested Stack Deployment
+# AWS CloudFormation Bastion Host Example Neasted Template
 
 This project deploys an architecture with a Virtual Private Cloud (VPC), a public EC2 instance (bastion host), and a private EC2 instance. The setup includes SSH access configuration options, an Internet Gateway, a NAT Gateway, and a layered security model with separate public and private subnets.
 
