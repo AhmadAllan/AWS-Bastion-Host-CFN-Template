@@ -24,6 +24,7 @@ Conditions:
   UseSSHKey: !Equals [!Ref UseKeyPair, 'true']
 
 Resources:
+  #TODO: restrict access only from the public ec2 instance not from the public subnet ip range
   PrivateInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -33,7 +34,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 10.0.1.0/24
 
   PrivateInstanceRole:
     Type: AWS::IAM::Role

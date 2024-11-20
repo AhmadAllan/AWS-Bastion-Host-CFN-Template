@@ -98,8 +98,3 @@ Resources:
           fi
 
           systemctl restart sshd
-
-Outputs:
-  PublicIP:
-    Description: Public IP address of the web server
-    Value: !GetAtt PublicEC2Instance.PublicIp
