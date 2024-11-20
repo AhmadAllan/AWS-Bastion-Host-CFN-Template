@@ -92,7 +92,7 @@ Resources:
 
   PrivateEC2Stack:
     Type: AWS::CloudFormation::Stack
-    DependsOn: VPCStack
+    DependsOn: PublicEC2Stack
     Properties:
       TemplateURL: !Ref PrivateEc2TemplateURL
       Parameters:
@@ -104,12 +104,6 @@ Resources:
       TimeoutInMinutes: 20
 
 Outputs:
-  PublicInstanceIP:
-    Description: Public IP of the web server
-    Value: !GetAtt PublicEC2Stack.Outputs.PublicIP
-  PrivateInstanceIP:
-    Description: Private IP of the private instance
-    Value: !GetAtt PrivateEC2Stack.Outputs.PrivateIP
   KeyPairName:
     Description: Name of the created key pair (if key pair was created)
     Condition: CreateKeyPair
