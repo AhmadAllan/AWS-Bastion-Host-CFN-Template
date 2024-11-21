@@ -19,12 +19,14 @@ Parameters:
   PasswordParameter:
     Type: String
     Description: SSM Parameter name for instance password
+  PublicEC2SecurityGroupId:
+    Type: String
+    Description: Security Group ID of the Public EC2 Instance
 
 Conditions:
   UseSSHKey: !Equals [!Ref UseKeyPair, 'true']
 
 Resources:
-  #TODO: restrict access only from the public ec2 instance not from the public subnet ip range
   PrivateInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -34,7 +36,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 10.0.1.0/24
+          SourceSecurityGroupId: !Ref PublicEC2SecurityGroupId
 
   PrivateInstanceRole:
     Type: AWS::IAM::Role
@@ -90,8 +92,3 @@ Resources:
           fi
 
           systemctl restart sshd
-
-Outputs:
-  PrivateIP:
-    Description: Private IP address of the instance
-    Value: !GetAtt PrivateInstance.PrivateIp

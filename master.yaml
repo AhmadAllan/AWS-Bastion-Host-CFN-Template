@@ -101,6 +101,7 @@ Resources:
         UseKeyPair: !Ref UseKeyPair
         KeyName: !If [CreateKeyPair, !Ref SSHKeyPair, '']
         PasswordParameter: !Ref PrivateInstancePasswordParam
+        PublicEC2SecurityGroupId: !GetAtt PublicEC2Stack.Outputs.PublicEC2SecurityGroupId
       TimeoutInMinutes: 20
 
 Outputs:
