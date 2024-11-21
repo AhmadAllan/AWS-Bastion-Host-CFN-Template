@@ -98,3 +98,8 @@ Resources:
           fi
 
           systemctl restart sshd
+
+Outputs:
+  PublicEC2SecurityGroupId:
+    Description: Security Group ID of the Public EC2 Instance
+    Value: !Ref PublicEC2SecurityGroup
