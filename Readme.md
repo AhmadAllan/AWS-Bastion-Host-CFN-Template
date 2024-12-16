@@ -67,12 +67,3 @@ The setup consists of four YAML templates:
 - **private-ec2.yaml**: Deploys the private EC2 instance in the private subnet.
 
 By uploading the nested templates (`vpc-template.yaml`, `public-ec2.yaml`, `private-ec2.yaml`) to S3, you can easily reference them in the `master.yaml` stack, simplifying stack management and maintaining modularity in your architecture.
-
-## Enhancements, Troubleshooting, and Goals
-- [X] TODO#1: restrict access to private ec2 only from public ec2 that on created VPC public subnet.
-- [X] TODO#2: Use template parameters to store passwords in SSM Parameter Store for EC2 instances passwords. 
-- [ ] TODO#3: Make the passwords in SSM Parameter Store encrypted.
-- [ ] TODO#4: Use AWS Secrets Manager for storing passwords in SSM Parameter Store for EC2 instances passwords.
-- [ ] TODO#5: Use Git sync instead of S3.
-- [ ] TODO#6: Automate the deploment proccess.
-- [ ] TODO#7: use System Manager to access the ec2 instances instead of SSH (or alongside SSH - need to be decided later).
